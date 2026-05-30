@@ -1,187 +1,129 @@
+-- // Rayfield Loader Atualizado
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Brookhaven RP | Script",
+    Name = "Brookhaven RP Script",
     LoadingTitle = "Carregando...",
-    LoadingSubtitle = "by Grok",
+    LoadingSubtitle = "Versão Corrigida",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "BrookhavenHub",
-        FileName = "BrookhavenConfig"
+        FileName = "Config"
     }
 })
 
-local MainTab = Window:CreateTab("Principal", 4483362458)
-local VisualTab = Window:CreateTab("Visual", 4483362458)
-local TrollTab = Window:CreateTab("Troll", 4483362458)
+local Main = Window:CreateTab("Principal", 4483362458)
+local Visual = Window:CreateTab("Visual", 4483362458)
+local Troll = Window:CreateTab("Troll", 4483362458)
 
--- Variáveis
-local ESPEnabled = false
-local AntiFlingEnabled = false
-local AntiSitEnabled = false
-local FlingEnabled = false
-local SelectedPlayer = nil
-
--- ==================== ESP HIGHLIGHTS ====================
-local function CreateHighlight(plr)
-    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "ESPHighlight"
-        highlight.FillColor = Color3.fromRGB(255, 0, 255)
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        highlight.FillTransparency = 0.5
-        highlight.OutlineTransparency = 0
-        highlight.Parent = plr.Character
-    end
-end
-
-local function UpdateESP()
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr \~= game.Players.LocalPlayer then
-            if ESPEnabled and plr.Character then
-                if not plr.Character:FindFirstChild("ESPHighlight") then
-                    CreateHighlight(plr)
-                end
-            elseif plr.Character and plr.Character:FindFirstChild("ESPHighlight") then
-                plr.Character.ESPHighlight:Destroy()
-            end
-        end
-    end
-end
-
-VisualTab:CreateToggle({
+-- ==================== ESP ====================
+Visual:CreateToggle({
     Name = "ESP Highlights",
     CurrentValue = false,
-    Flag = "ESP",
     Callback = function(Value)
-        ESPEnabled = Value
+        _G.ESP = Value
         if Value then
-            game.Players.PlayerAdded:Connect(function(plr)
-                plr.CharacterAdded:Connect(function()
-                    wait(1)
-                    if ESPEnabled then CreateHighlight(plr) end
-                end)
-            end)
-            UpdateESP()
+            for _, v in pairs(game.Players:GetPlayers()) do
+                if v \~= game.Players.LocalPlayer and v.Character then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESP"
+                    highlight.FillColor = Color3.fromRGB(255, 0, 255)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    highlight.Parent = v.Character
+                end
+            end
+        else
+            for _, v in pairs(game.Players:GetPlayers()) do
+                if v.Character and v.Character:FindFirstChild("ESP") then
+                    v.Character.ESP:Destroy()
+                end
+            end
         end
     end,
 })
 
 -- ==================== ANTI FLING ====================
-local function AntiFling()
-    if AntiFlingEnabled then
-        local root = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.Velocity = Vector3.new(0, root.Velocity.Y, 0)
-            root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0,0,0)
-        end
-    end
-end
-
-MainTab:CreateToggle({
+Main:CreateToggle({
     Name = "Anti Fling",
     CurrentValue = false,
-    Flag = "AntiFling",
     Callback = function(Value)
-        AntiFlingEnabled = Value
+        _G.AntiFling = Value
         if Value then
-            game:GetService("RunService").Heartbeat:Connect(AntiFling)
-        end
-    end,
-})
-
--- ==================== ANTI SIT ====================
-MainTab:CreateToggle({
-    Name = "Anti Sit (Anti Seat)",
-    CurrentValue = false,
-    Flag = "AntiSit",
-    Callback = function(Value)
-        AntiSitEnabled = Value
-        if Value then
-            spawn(function()
-                while AntiSitEnabled do
-                    local char = game.Players.LocalPlayer.Character
-                    if char and char:FindFirstChild("Humanoid") then
-                        char.Humanoid.Sit = false
-                        for _, seat in pairs(workspace:GetDescendants()) do
-                            if seat:IsA("Seat") or seat:IsA("VehicleSeat") then
-                                seat.Disabled = true
-                            end
-                        end
+            game:GetService("RunService").Heartbeat:Connect(function()
+                if _G.AntiFling and game.Players.LocalPlayer.Character then
+                    local root = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+                        root.AssemblyAngularVelocity = Vector3.new(0,0,0)
                     end
-                    wait(0.1)
                 end
             end)
         end
     end,
 })
 
--- ==================== FLING (Muito forte) ====================
-local FlingPart = nil
-
-local function StartFling()
-    local char = game.Players.LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    
-    FlingPart = Instance.new("Part")
-    FlingPart.Name = "FlingPart"
-    FlingPart.Size = Vector3.new(6, 6, 6)
-    FlingPart.Transparency = 0.7
-    FlingPart.BrickColor = BrickColor.new("Really red")
-    FlingPart.CanCollide = false
-    FlingPart.Anchored = false
-    FlingPart.Parent = workspace
-    
-    local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = Vector3.new(0,0,0)
-    bv.Parent = FlingPart
-    
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = char.HumanoidRootPart
-    weld.Part1 = FlingPart
-    weld.Parent = FlingPart
-end
-
-TrollTab:CreateToggle({
-    Name = "Fling (Segure no Alvo)",
+-- ==================== ANTI SIT ====================
+Main:CreateToggle({
+    Name = "Anti Sit",
     CurrentValue = false,
-    Flag = "Fling",
     Callback = function(Value)
-        FlingEnabled = Value
-        if Value then
-            StartFling()
-            Rayfield:Notify({Title = "Fling Ativado", Content = "Clique em um jogador para flingar!", Duration = 5})
-        else
-            if FlingPart then FlingPart:Destroy() end
-        end
+        _G.AntiSit = Value
+        spawn(function()
+            while _G.AntiSit and game.Players.LocalPlayer.Character do
+                local hum = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+                if hum then
+                    hum.Sit = false
+                end
+                wait(0.05)
+            end
+        end)
     end,
 })
 
-TrollTab:CreateButton({
-    Name = "Fling All (Muito forte)",
-    Callback = function()
-        for _, plr in pairs(game.Players:GetPlayers()) do
-            if plr \~= game.Players.LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                local root = plr.Character.HumanoidRootPart
-                root.Velocity = Vector3.new(math.random(-500,500), 500, math.random(-500,500))
-                root.AssemblyLinearVelocity = Vector3.new(math.random(-1000,1000), 800, math.random(-1000,1000))
+-- ==================== FLING (Melhorado) ====================
+local flingConnection = nil
+
+Troll:CreateToggle({
+    Name = "Fling (Segure no Alvo)",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            Rayfield:Notify({Title = "Fling", Content = "Clique em um jogador para flingar ele!", Duration = 4})
+            
+            flingConnection = game.Players.LocalPlayer:GetMouse().Button1Down:Connect(function()
+                local target = game.Players.LocalPlayer:GetMouse().Target
+                if target and target.Parent:FindFirstChild("Humanoid") then
+                    local root = target.Parent:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        root.Velocity = Vector3.new(math.random(-999,999), 999, math.random(-999,999))
+                        root.AssemblyLinearVelocity = Vector3.new(math.random(-2000,2000), 1500, math.random(-2000,2000))
+                    end
+                end
+            end)
+        else
+            if flingConnection then
+                flingConnection:Disconnect()
             end
         end
     end,
 })
 
--- Atualização constante
-game:GetService("RunService").RenderStepped:Connect(function()
-    if ESPEnabled then
-        UpdateESP()
-    end
-end)
+Troll:CreateButton({
+    Name = "Fling All (Forte)",
+    Callback = function()
+        for _, plr in pairs(game.Players:GetPlayers()) do
+            if plr \~= game.Players.LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local r = plr.Character.HumanoidRootPart
+                r.Velocity = Vector3.new(0, 500, 0)
+                r.AssemblyLinearVelocity = Vector3.new(math.random(-1200,1200), 800, math.random(-1200,1200))
+            end
+        end
+    end,
+})
 
 Rayfield:Notify({
-    Title = "Script Carregado!",
-    Content = "Divirta-se no Brookhaven!",
-    Duration = 6,
-    Image = 4483362458,
+    Title = "Script Carregado com Sucesso!",
+    Content = "Teste as funções agora",
+    Duration = 5
 })
