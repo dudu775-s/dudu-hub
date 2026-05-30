@@ -1,203 +1,187 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "🔥 Fling Nuclear Hub",
-    LoadingTitle = "Carregando Fling Nuclear...",
-    LoadingSubtitle = "Versão mais forte",
-    ConfigurationSaving = { Enabled = true, FolderName = "NuclearFling", FileName = "Config" }
+    Name = "Brookhaven RP | Script",
+    LoadingTitle = "Carregando...",
+    LoadingSubtitle = "by Grok",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "BrookhavenHub",
+        FileName = "BrookhavenConfig"
+    }
 })
 
-local MainTab = Window:CreateTab("Main", 4483362458)
+local MainTab = Window:CreateTab("Principal", 4483362458)
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+local TrollTab = Window:CreateTab("Troll", 4483362458)
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-
-local ESPHighlights = {}
-local FlingTarget = nil
-local AutoFling = false
+-- Variáveis
+local ESPEnabled = false
+local AntiFlingEnabled = false
+local AntiSitEnabled = false
+local FlingEnabled = false
+local SelectedPlayer = nil
 
 -- ==================== ESP HIGHLIGHTS ====================
-local function CreateESP(plr)
-    if ESPHighlights[plr] or plr == LocalPlayer then return end
-    local char = plr.Character
-    if not char then return end
-    
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = Color3.fromRGB(255, 0, 100)
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.4
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = char
-    ESPHighlights[plr] = highlight
+local function CreateHighlight(plr)
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 0, 255)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = plr.Character
+    end
 end
 
 local function UpdateESP()
-    for _, plr in Players:GetPlayers() do
-        if plr \~= LocalPlayer then
-            if plr.Character then
-                CreateESP(plr)
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr \~= game.Players.LocalPlayer then
+            if ESPEnabled and plr.Character then
+                if not plr.Character:FindFirstChild("ESPHighlight") then
+                    CreateHighlight(plr)
+                end
+            elseif plr.Character and plr.Character:FindFirstChild("ESPHighlight") then
+                plr.Character.ESPHighlight:Destroy()
             end
         end
     end
 end
 
--- ==================== ANTI FLING (Forte) ====================
-local AntiFlingEnabled = false
+VisualTab:CreateToggle({
+    Name = "ESP Highlights",
+    CurrentValue = false,
+    Flag = "ESP",
+    Callback = function(Value)
+        ESPEnabled = Value
+        if Value then
+            game.Players.PlayerAdded:Connect(function(plr)
+                plr.CharacterAdded:Connect(function()
+                    wait(1)
+                    if ESPEnabled then CreateHighlight(plr) end
+                end)
+            end)
+            UpdateESP()
+        end
+    end,
+})
+
+-- ==================== ANTI FLING ====================
 local function AntiFling()
-    if not AntiFlingEnabled then return end
-    local char = LocalPlayer.Character
-    if not char then return end
-    
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Velocity = Vector3.new(0,0,0)
-            part.RotVelocity = Vector3.new(0,0,0)
-            part.AssemblyLinearVelocity = Vector3.new(0,0,0)
+    if AntiFlingEnabled then
+        local root = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Velocity = Vector3.new(0, root.Velocity.Y, 0)
+            root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0,0,0)
         end
     end
 end
+
+MainTab:CreateToggle({
+    Name = "Anti Fling",
+    CurrentValue = false,
+    Flag = "AntiFling",
+    Callback = function(Value)
+        AntiFlingEnabled = Value
+        if Value then
+            game:GetService("RunService").Heartbeat:Connect(AntiFling)
+        end
+    end,
+})
 
 -- ==================== ANTI SIT ====================
-local AntiSitEnabled = false
-local function AntiSit()
-    if not AntiSitEnabled then return end
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-    if hum then
-        hum.Sit = false
-        hum.PlatformStand = false
-    end
-end
+MainTab:CreateToggle({
+    Name = "Anti Sit (Anti Seat)",
+    CurrentValue = false,
+    Flag = "AntiSit",
+    Callback = function(Value)
+        AntiSitEnabled = Value
+        if Value then
+            spawn(function()
+                while AntiSitEnabled do
+                    local char = game.Players.LocalPlayer.Character
+                    if char and char:FindFirstChild("Humanoid") then
+                        char.Humanoid.Sit = false
+                        for _, seat in pairs(workspace:GetDescendants()) do
+                            if seat:IsA("Seat") or seat:IsA("VehicleSeat") then
+                                seat.Disabled = true
+                            end
+                        end
+                    end
+                    wait(0.1)
+                end
+            end)
+        end
+    end,
+})
 
--- ==================== FLING NUCLEAR (Mais Forte) ====================
-local function NuclearFling(target)
-    if not target or not target.Character then return end
-    
-    local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
-    local myRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local myHum = LocalPlayer.Character:FindFirstChild("Humanoid")
-    
-    if not targetRoot or not myRoot or not myHum then return end
+-- ==================== FLING (Muito forte) ====================
+local FlingPart = nil
 
-    local originalCFrame = myRoot.CFrame
+local function StartFling()
+    local char = game.Players.LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     
-    myHum.PlatformStand = true
+    FlingPart = Instance.new("Part")
+    FlingPart.Name = "FlingPart"
+    FlingPart.Size = Vector3.new(6, 6, 6)
+    FlingPart.Transparency = 0.7
+    FlingPart.BrickColor = BrickColor.new("Really red")
+    FlingPart.CanCollide = false
+    FlingPart.Anchored = false
+    FlingPart.Parent = workspace
     
-    -- Posicionamento + impulso nuclear
-    myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -5) * CFrame.Angles(0, math.rad(180), 0)
-    
-    task.wait(0.07)
-
-    -- BodyVelocity
     local bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = (targetRoot.Position - myRoot.Position).Unit * 650 + Vector3.new(0, 120, 0)
-    bv.Parent = myRoot
-
-    -- AssemblyLinearVelocity (mais forte)
-    local alv = Instance.new("AssemblyLinearVelocity")
-    alv.MaxForce = math.huge
-    alv.VectorVelocity = bv.Velocity * 2.2
-    alv.Parent = myRoot
-
-    -- Extra force
-    myRoot.AssemblyLinearVelocity = alv.VectorVelocity
-
-    task.wait(0.4)
-
-    bv:Destroy()
-    alv:Destroy()
-    myHum.PlatformStand = false
-    myRoot.CFrame = originalCFrame
+    bv.Velocity = Vector3.new(0,0,0)
+    bv.Parent = FlingPart
+    
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = char.HumanoidRootPart
+    weld.Part1 = FlingPart
+    weld.Parent = FlingPart
 end
 
--- ==================== UI ====================
-
-MainTab:CreateToggle({
-    Name = "ESP Highlights",
-    CurrentValue = true,
-    Callback = function(v)
-        if v then
-            UpdateESP()
+TrollTab:CreateToggle({
+    Name = "Fling (Segure no Alvo)",
+    CurrentValue = false,
+    Flag = "Fling",
+    Callback = function(Value)
+        FlingEnabled = Value
+        if Value then
+            StartFling()
+            Rayfield:Notify({Title = "Fling Ativado", Content = "Clique em um jogador para flingar!", Duration = 5})
         else
-            for _, h in pairs(ESPHighlights) do h:Destroy() end
-            ESPHighlights = {}
+            if FlingPart then FlingPart:Destroy() end
         end
-    end
+    end,
 })
 
-MainTab:CreateToggle({
-    Name = "Anti Fling (Proteção)",
-    CurrentValue = false,
-    Callback = function(v) AntiFlingEnabled = v end
-})
-
-MainTab:CreateToggle({
-    Name = "Anti Sit",
-    CurrentValue = false,
-    Callback = function(v) AntiSitEnabled = v end
-})
-
-MainTab:CreateDropdown({
-    Name = "Selecionar Alvo",
-    Options = (function()
-        local list = {}
-        for _, p in Players:GetPlayers() do
-            if p \~= LocalPlayer then table.insert(list, p.Name) end
-        end
-        return list
-    end)(),
-    Callback = function(opt)
-        FlingTarget = Players:FindFirstChild(opt[1])
-    end
-})
-
-MainTab:CreateButton({
-    Name = "🚀 Nuclear Fling (Único)",
+TrollTab:CreateButton({
+    Name = "Fling All (Muito forte)",
     Callback = function()
-        if FlingTarget then NuclearFling(FlingTarget) end
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Auto Nuclear Fling",
-    CurrentValue = false,
-    Callback = function(v)
-        AutoFling = v
-        while AutoFling and FlingTarget do
-            NuclearFling(FlingTarget)
-            task.wait(0.55)
-        end
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Fling Todos (Cuidado)",
-    Callback = function()
-        for _, plr in Players:GetPlayers() do
-            if plr \~= LocalPlayer and plr.Character then
-                task.spawn(function()
-                    NuclearFling(plr)
-                end)
+        for _, plr in pairs(game.Players:GetPlayers()) do
+            if plr \~= game.Players.LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local root = plr.Character.HumanoidRootPart
+                root.Velocity = Vector3.new(math.random(-500,500), 500, math.random(-500,500))
+                root.AssemblyLinearVelocity = Vector3.new(math.random(-1000,1000), 800, math.random(-1000,1000))
             end
         end
-    end
+    end,
 })
 
--- Atualizações em loop
-RunService.Heartbeat:Connect(function()
-    AntiFling()
-    AntiSit()
-    UpdateESP()
-end)
-
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function() task.wait(1) UpdateESP() end)
+-- Atualização constante
+game:GetService("RunService").RenderStepped:Connect(function()
+    if ESPEnabled then
+        UpdateESP()
+    end
 end)
 
 Rayfield:Notify({
-    Title = "Nuclear Fling Carregado",
-    Content = "Versão mais forte disponível.",
-    Duration = 6
+    Title = "Script Carregado!",
+    Content = "Divirta-se no Brookhaven!",
+    Duration = 6,
+    Image = 4483362458,
 })
